@@ -174,8 +174,9 @@ int main(int argc, char** argv)
         
         switch(chIn)
         {            
-            case 't':            
-                icsSpyMessage OutMsg;
+            case 't':
+            {           
+                icsSpyMessage OutMsg = {0};
                 OutMsg.ArbIDOrHeader = 0x500;
                 OutMsg.Data[0] = Nd[index_to_open].SerialNumber & 0xff;
                 OutMsg.Data[1] = (Nd[index_to_open].SerialNumber >> 8) & 0xff;
@@ -188,7 +189,7 @@ int main(int argc, char** argv)
                 OutMsg.NumberBytesData = 8;
                 OutMsg.NumberBytesHeader = 2;      
                 iRetVal = icsneoTxMessages(hObject, &OutMsg, NETID_HSCAN, 1);
-                break;    		
+            }   break;    		
 
             case 'e':
                 bExit = true;
