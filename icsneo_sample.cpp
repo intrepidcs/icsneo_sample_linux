@@ -84,7 +84,7 @@ int main(int argc, char** argv)
 {
     NeoDevice Nd[255];
     int iRetVal = 0;
-    int i, serial_to_open = 0, index_to_open;
+    int i, index_to_open = -1;
     int NumDevices = 255;
     int NumErrors;
     pthread_t thread;
@@ -92,6 +92,7 @@ int main(int argc, char** argv)
     icsSpyMessage OutMsg;
     char DeviceType[25];
     char chIn;
+    unsigned long serial_to_open = 0;
 
     if(argc >= 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) 
     {
@@ -100,7 +101,7 @@ int main(int argc, char** argv)
     }
 
     if(argc >= 3 && (strcmp(argv[1], "-s") == 0 || strcmp(argv[1], "--serial") == 0))
-        serial_to_open = atoi(argv[2]);
+        icsneoSerialNumberFromString(&serial_to_open, argv[2]);
 
     
     pthread_mutexattr_init(&cs_mutex_attr); 	
@@ -132,6 +133,25 @@ int main(int argc, char** argv)
             case NEODEVICE_FIRE:
                 strcpy(DeviceType, "neoVI FIRE");
                 break;
+
+            case NEODEVICE_PLASMA_1_11:
+            case NEODEVICE_PLASMA_1_12: 
+            case NEODEVICE_PLASMA_1_13:
+                strcpy(DeviceType, "neoVI PLASMA");
+                break;
+
+            case NEODEVICE_ION_2:
+		    case NEODEVICE_ION_3:
+                strcpy(DeviceType, "neoVI ION");
+                break;
+
+            case NEODEVICE_FIRE2:
+                strcpy(DeviceType, "neoVI FIRE2");
+                break;
+
+            case NEODEVICE_VCANRF:
+                strcpy(DeviceType, "VCAN.rf");
+                break;
                 
             default:
                 strcpy(DeviceType, "Other device");                
@@ -141,12 +161,19 @@ int main(int argc, char** argv)
         if(Nd[i].SerialNumber == serial_to_open)
             index_to_open = i;
 
+        char serialStr[64];
+        icsneoSerialNumberToString(Nd[i].SerialNumber, serialStr, sizeof(serialStr));
         printf("Device %d: ", i + 1);
-        printf("Serial # %d Type = %s\n", Nd[i].SerialNumber, DeviceType); 
+        printf("Serial # %s Type = %s\n", serialStr, DeviceType); 
     }
     
     if(serial_to_open == 0)
         index_to_open = 0;
+    else if(index_to_open == -1)
+    {
+        printf("\nUnable to find device with serial # %s\n", argv[2]);
+        return 0;
+    }
 
     printf("\nOpening device %i\n", index_to_open + 1);
 
