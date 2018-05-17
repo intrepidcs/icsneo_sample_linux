@@ -61,15 +61,20 @@ void *ReadThread(void *lParam)
         if(icsneoGetMessages(hObject, Msgs, &NumMsgs, &NumErrors) == 0)
             continue;     	
        
-         for(int i = 0; i < NumMsgs; i++)
+        for(int i = 0; i < NumMsgs; i++)
         {
             double time;
+            icsSpyMessage& msg = Msgs[i];
 
-            icsneoGetTimeStampForMsg(hObject, &Msgs[i], &time);
-            printf("Time %f Network %d ArbID = %X - Data Bytes: ", time, Msgs[i].NetworkID, Msgs[i].ArbIDOrHeader);
+            icsneoGetTimeStampForMsg(hObject, &msg, &time);
+            printf("Time %f Network %d (%s) ArbID = %X - Data Bytes: ", time, msg.NetworkID, 
+                Msgs[i].Protocol == SPY_PROTOCOL_CANFD ? " CAN-FD" : "Classic", msg.ArbIDOrHeader);
             
-            for(int j = 0; j < Msgs[i].NumberBytesData; j++)
-                printf("%02X ", Msgs[i].Data[j]);
+            const unsigned char* bytes = msg.ExtraDataPtr && msg.ExtraDataPtrEnabled ?
+                (const unsigned char*)msg.ExtraDataPtr : msg.Data;
+
+            for(int j = 0; j < msg.NumberBytesData; j++)
+                printf("%02X ", bytes[j]);
 
             printf("\n");           
          }  	
@@ -84,14 +89,16 @@ int main(int argc, char** argv)
 {
     NeoDevice Nd[255];
     int iRetVal = 0;
-    int i, serial_to_open = 0, index_to_open;
+    int i, index_to_open;
+    unsigned int serial_to_open = 0;
     int NumDevices = 255;
     int NumErrors;
     pthread_t thread;
     bool bExit = false;
     icsSpyMessage OutMsg;
-    char DeviceType[25];
+    char DeviceType[50];
     char chIn;
+    const char* serial_to_open_str = NULL;
 
     if(argc >= 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) 
     {
@@ -100,7 +107,10 @@ int main(int argc, char** argv)
     }
 
     if(argc >= 3 && (strcmp(argv[1], "-s") == 0 || strcmp(argv[1], "--serial") == 0))
-        serial_to_open = atoi(argv[2]);
+    {
+        serial_to_open_str = argv[2];
+        icsneoSerialNumberFromString(&serial_to_open, serial_to_open_str);
+    }
 
     
     pthread_mutexattr_init(&cs_mutex_attr); 	
@@ -111,7 +121,7 @@ int main(int argc, char** argv)
 
     printf("Starting......\n");
 
-    iRetVal = icsneoFindNeoDevices(NEODEVICE_ALL & ~NEODEVICE_RADGALAXY, Nd, &NumDevices);
+    iRetVal = icsneoFindNeoDevices(~NEODEVICE_RADGALAXY, Nd, &NumDevices);
         
     if(iRetVal == 0 || NumDevices == 0)
     {
@@ -132,6 +142,14 @@ int main(int argc, char** argv)
             case NEODEVICE_FIRE:
                 strcpy(DeviceType, "neoVI FIRE");
                 break;
+
+            case NEODEVICE_FIRE2:
+                strcpy(DeviceType, "neoVI FIRE2");
+                break;
+
+            case NEODEVICE_VCANRF:
+                strcpy(DeviceType, "ValueCAN.rf");
+                break;
                 
             default:
                 strcpy(DeviceType, "Other device");                
@@ -141,8 +159,11 @@ int main(int argc, char** argv)
         if(Nd[i].SerialNumber == serial_to_open)
             index_to_open = i;
 
+        char serial_str[50];
+        icsneoSerialNumberToString(Nd[i].SerialNumber, serial_str, sizeof(serial_str));
+
         printf("Device %d: ", i + 1);
-        printf("Serial # %d Type = %s\n", Nd[i].SerialNumber, DeviceType); 
+        printf("Serial # %s Type = %s\n", serial_str, DeviceType); 
     }
     
     if(serial_to_open == 0)
